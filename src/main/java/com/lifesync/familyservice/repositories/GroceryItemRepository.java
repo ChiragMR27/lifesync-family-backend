@@ -1,9 +1,9 @@
-package com.lifesync.family_service.repositories;
+package com.lifesync.familyservice.repositories;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import com.lifesync.family_service.GroceryItem;
+import com.lifesync.familyservice.GroceryItem;
 
 import java.util.List;
 

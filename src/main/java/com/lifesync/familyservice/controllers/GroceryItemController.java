@@ -1,17 +1,20 @@
-package com.lifesync.family_service.controllers;
+package com.lifesync.familyservice.controllers;
 
-import com.lifesync.family_service.GroceryItem;
-import com.lifesync.family_service.services.GroceryItemService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.*;
+
+import com.lifesync.familyservice.GroceryItem;
+import com.lifesync.familyservice.services.GroceryItemService;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/family/groceries")
-@CrossOrigin(origins = "http://localhost:5173") // This is crucial for your React frontend!
+// Upgraded CORS to accept all standard methods so your React app isn't blocked
+@CrossOrigin(origins = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE})
 public class GroceryItemController {
 
     @Autowired
@@ -36,16 +39,16 @@ public class GroceryItemController {
         return new ResponseEntity<>(savedItem, HttpStatus.CREATED);
     }
 
-    // 4. PUT: Mark an item as purchased
-    @PutMapping("/{id}/purchase")
-    public ResponseEntity<GroceryItem> markAsPurchased(@PathVariable Long id) {
+    // 4. PUT: Mark an item as purchased (FIXED TO MATCH REACT)
+    @PutMapping("/{id}")
+    public ResponseEntity<GroceryItem> markAsPurchased(@PathVariable @NonNull Long id, @RequestBody(required = false) GroceryItem itemDetails) {
         GroceryItem updatedItem = groceryItemService.markAsPurchased(id);
         return new ResponseEntity<>(updatedItem, HttpStatus.OK);
     }
 
     // 5. DELETE: Remove an item
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteGroceryItem(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteGroceryItem(@PathVariable @NonNull Long id) {
         groceryItemService.deleteItem(id);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }

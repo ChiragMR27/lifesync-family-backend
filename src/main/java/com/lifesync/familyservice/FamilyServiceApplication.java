@@ -1,4 +1,4 @@
-	package com.lifesync.family_service;
+package com.lifesync.familyservice;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

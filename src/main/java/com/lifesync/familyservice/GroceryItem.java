@@ -1,4 +1,4 @@
-package com.lifesync.family_service;
+package com.lifesync.familyservice;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

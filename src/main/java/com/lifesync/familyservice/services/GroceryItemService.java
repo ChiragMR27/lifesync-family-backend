@@ -1,9 +1,11 @@
-package com.lifesync.family_service.services;
+package com.lifesync.familyservice.services;
 
-import com.lifesync.family_service.GroceryItem;
-import com.lifesync.family_service.repositories.GroceryItemRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
+
+import com.lifesync.familyservice.GroceryItem;
+import com.lifesync.familyservice.repositories.GroceryItemRepository;
 
 import java.util.List;
 
@@ -31,7 +33,7 @@ public class GroceryItemService {
     }
 
     // 4. Check an item off the list (Mark as purchased)
-    public GroceryItem markAsPurchased(Long id) {
+    public GroceryItem markAsPurchased(@NonNull Long id) {
         // Find the item, or throw an error if someone tries to update an ID that doesn't exist
         GroceryItem item = groceryItemRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Grocery item not found with id: " + id));
@@ -41,7 +43,7 @@ public class GroceryItemService {
     }
 
     // 5. Delete an item completely
-    public void deleteItem(Long id) {
+    public void deleteItem(@NonNull Long id) {
         groceryItemRepository.deleteById(id);
     }
 }
