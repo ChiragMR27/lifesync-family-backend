@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -29,18 +30,24 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
+    protected void doFilterInternal(@NonNull HttpServletRequest request, 
+                                    @NonNull HttpServletResponse response, 
+                                    @NonNull FilterChain filterChain)
             throws ServletException, IOException {
         
         // 1. Get the Authorization header from the request
         String authHeader = request.getHeader("Authorization");
 
-        // 2. Check if the header contains a Bearer token
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+        // Debug: Log incoming header presence
+        if (authHeader == null) {
+            System.out.println("DEBUG: No Authorization header received by Family Service.");
+        } else if (!authHeader.startsWith("Bearer ")) {
+            System.out.println("DEBUG: Authorization header found, but does NOT start with 'Bearer '.");
+        } else {
             String token = authHeader.substring(7); // Remove "Bearer " prefix
 
             try {
-                // 3. Parse and validate the token using our shared secret key
+                // 2. Parse and validate token
                 Claims claims = Jwts.parser()
                         .verifyWith(secretKey)
                         .build()
@@ -48,20 +55,24 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                         .getPayload();
 
                 String username = claims.getSubject();
+                System.out.println("DEBUG: Token parsed successfully for user: " + username);
 
-                // 4. If valid, tell Spring Security this user is authenticated
+                // 3. Set authentication context
                 if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                     UsernamePasswordAuthenticationToken authToken = 
                             new UsernamePasswordAuthenticationToken(username, null, Collections.emptyList());
+                    
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    System.out.println("DEBUG: SecurityContext successfully set for: " + username);
                 }
             } catch (Exception e) {
-                // Token is invalid, expired, or tampered with
-                System.out.println("Invalid JWT Token: " + e.getMessage());
+                // Catch verification failure (Expired, invalid signature, payload mismatch)
+                System.out.println("DEBUG: JWT Parsing/Validation Error: " + e.getMessage());
             }
         }
 
-        // 5. Continue processing the request
+        // 4. Pass control to the next filter
         filterChain.doFilter(request, response);
     }
 }

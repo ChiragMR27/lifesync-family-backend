@@ -4,7 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 
-import com.lifesync.familyservice.GroceryItem;
+import com.lifesync.familyservice.model.GroceryItem;
 import com.lifesync.familyservice.repositories.GroceryItemRepository;
 
 import java.util.List;

@@ -3,7 +3,7 @@ package com.lifesync.familyservice.repositories;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import com.lifesync.familyservice.GroceryItem;
+import com.lifesync.familyservice.model.GroceryItem;
 
 import java.util.List;
 

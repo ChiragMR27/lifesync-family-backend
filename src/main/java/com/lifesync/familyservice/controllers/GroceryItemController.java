@@ -6,7 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.*;
 
-import com.lifesync.familyservice.GroceryItem;
+import com.lifesync.familyservice.model.GroceryItem;
 import com.lifesync.familyservice.services.GroceryItemService;
 
 import java.util.List;

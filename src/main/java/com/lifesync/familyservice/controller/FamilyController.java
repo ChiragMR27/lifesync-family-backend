@@ -9,9 +9,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@CrossOrigin(origins = "*") // Allows your React frontend to connect later!
 @RestController
 @RequestMapping("/api/family")
+@CrossOrigin(origins = "*")
 public class FamilyController {
 
     private final FamilyMemberRepository repository;
