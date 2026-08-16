@@ -1,9 +1,8 @@
 package com.lifesync.familyservice.model;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Entity
@@ -21,15 +20,12 @@ public class FamilyGroup {
     @Column(name = "leader_email")
     private String leaderEmail;
 
-    // MAGIC FIX: This saves the emails as a JSON array in the same table, 
-    // completely bypassing the Aiven Primary Key error!
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "member_emails")
-    private List<String> members = new ArrayList<>();
+    // Stores members as a safe, high-capacity comma-separated text string in MySQL
+    @Column(name = "member_emails", columnDefinition = "TEXT")
+    private String memberEmails = "";
 
     public FamilyGroup() {}
 
-    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -45,10 +41,25 @@ public class FamilyGroup {
     public String getLeaderEmail() { return leaderEmail; }
     public void setLeaderEmail(String leaderEmail) { this.leaderEmail = leaderEmail; }
 
-    public List<String> getMembers() { return members; }
-    public void setMembers(List<String> members) { this.members = members; }
+    // Automatically converts comma-separated database text into a Java List for your controller
+    public List<String> getMembers() {
+        if (memberEmails == null || memberEmails.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(Arrays.asList(memberEmails.split(",")));
+    }
+
+    // Automatically converts your Java List back into a comma-separated string for MySQL
+    public void setMembers(List<String> membersList) {
+        if (membersList == null || membersList.isEmpty()) {
+            this.memberEmails = "";
+        } else {
+            this.memberEmails = String.join(",", membersList);
+        }
+    }
 
     public int getMembersCount() { 
-        return members != null ? members.size() : 0; 
+        List<String> list = getMembers();
+        return list != null ? list.size() : 0; 
     }
 }
