@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/family/groups")
@@ -18,7 +19,7 @@ import java.util.Map;
 public class FamilyGroupController {
 
     private final FamilyGroupRepository groupRepository;
-    private final GroceryItemRepository groceryRepository; // NEW: Added to save groceries
+    private final GroceryItemRepository groceryRepository;
 
     public FamilyGroupController(FamilyGroupRepository groupRepository, GroceryItemRepository groceryRepository) {
         this.groupRepository = groupRepository;
@@ -26,20 +27,29 @@ public class FamilyGroupController {
     }
 
     @GetMapping
-    public ResponseEntity<List<FamilyGroup>> getAllGroups() {
-        return ResponseEntity.ok(groupRepository.findAll());
+    public ResponseEntity<List<FamilyGroup>> getUserGroups(@RequestParam String email) {
+        List<FamilyGroup> allGroups = groupRepository.findAll();
+        
+        List<FamilyGroup> userGroups = allGroups.stream()
+                .filter(group -> 
+                    (group.getLeaderEmail() != null && group.getLeaderEmail().equals(email)) || 
+                    group.getMembers().contains(email)
+                )
+                .collect(Collectors.toList());
+                
+        return ResponseEntity.ok(userGroups);
     }
 
     @PostMapping
     public ResponseEntity<FamilyGroup> createGroup(@RequestBody @NonNull FamilyGroup newGroup) {
-        if (newGroup.getLeaderEmail() != null && !newGroup.getMembers().contains(newGroup.getLeaderEmail())) {
-            newGroup.getMembers().add(newGroup.getLeaderEmail());
+        List<String> members = newGroup.getMembers();
+        if (newGroup.getLeaderEmail() != null && !members.contains(newGroup.getLeaderEmail())) {
+            members.add(newGroup.getLeaderEmail());
+            newGroup.setMembers(members); 
         }
         
-        // Save the group first so the database assigns it a real ID
         FamilyGroup savedGroup = groupRepository.save(newGroup);
 
-        // NEW: Auto-populate default items if this is a Grocery group
         if ("Grocery".equalsIgnoreCase(savedGroup.getType())) {
             GroceryItem item1 = new GroceryItem();
             item1.setText("Organic Whole Milk (2L)");
@@ -62,7 +72,6 @@ public class FamilyGroupController {
             item3.setGroupId(savedGroup.getId());
             item3.setAddedBy(savedGroup.getLeaderEmail());
 
-            // Save all 3 to the database instantly
             groceryRepository.saveAll(Arrays.asList(item1, item2, item3));
         }
 
@@ -73,8 +82,10 @@ public class FamilyGroupController {
     public ResponseEntity<FamilyGroup> addMemberToGroup(@PathVariable @NonNull Long groupId, @RequestBody Map<String, String> request) {
         String email = request.get("email");
         return groupRepository.findById(groupId).map(group -> {
-            if (!group.getMembers().contains(email)) {
-                group.getMembers().add(email);
+            List<String> members = group.getMembers();
+            if (!members.contains(email)) {
+                members.add(email);
+                group.setMembers(members); 
                 groupRepository.save(group);
             }
             return ResponseEntity.ok(group);
@@ -85,8 +96,10 @@ public class FamilyGroupController {
     public ResponseEntity<FamilyGroup> transferLeadership(@PathVariable @NonNull Long groupId, @RequestBody Map<String, String> request) {
         String newLeaderEmail = request.get("newLeaderEmail");
         return groupRepository.findById(groupId).map(group -> {
-            if (!group.getMembers().contains(newLeaderEmail)) {
-                group.getMembers().add(newLeaderEmail);
+            List<String> members = group.getMembers();
+            if (!members.contains(newLeaderEmail)) {
+                members.add(newLeaderEmail);
+                group.setMembers(members);
             }
             group.setLeaderEmail(newLeaderEmail);
             return ResponseEntity.ok(groupRepository.save(group));
