@@ -39,6 +39,11 @@ public class GroceryController {
             item.setInCart(updatedItem.isInCart());
             item.setAddedBy(updatedItem.getAddedBy());
             item.setClaimedBy(updatedItem.getClaimedBy());
+            
+            // THE FIX: Now the database will actually save the Quantity and Unit!
+            item.setQuantity(updatedItem.getQuantity());
+            item.setUnit(updatedItem.getUnit());
+            
             return ResponseEntity.ok(groceryRepository.save(item));
         }).orElse(ResponseEntity.notFound().build());
     }
