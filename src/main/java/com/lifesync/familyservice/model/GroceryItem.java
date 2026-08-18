@@ -16,7 +16,6 @@ public class GroceryItem {
     @Column(name = "group_id", nullable = false)
     private Long groupId;
 
-    // THE FIX: Forces Java and React to use the exact same name for this variable
     @JsonProperty("isDefault")
     @Column(name = "is_default")
     private boolean isDefault;
@@ -29,6 +28,14 @@ public class GroceryItem {
 
     @Column(name = "claimed_by")
     private String claimedBy;
+
+    // NEW: Quantity tracking (e.g., 0.25, 2.0)
+    @Column(name = "quantity")
+    private Double quantity;
+
+    // NEW: Unit tracking (e.g., "kg", "pcs", "liters")
+    @Column(name = "unit")
+    private String unit;
 
     public GroceryItem() {}
 
@@ -55,4 +62,10 @@ public class GroceryItem {
 
     public String getClaimedBy() { return claimedBy; }
     public void setClaimedBy(String claimedBy) { this.claimedBy = claimedBy; }
+
+    public Double getQuantity() { return quantity; }
+    public void setQuantity(Double quantity) { this.quantity = quantity; }
+
+    public String getUnit() { return unit; }
+    public void setUnit(String unit) { this.unit = unit; }
 }
