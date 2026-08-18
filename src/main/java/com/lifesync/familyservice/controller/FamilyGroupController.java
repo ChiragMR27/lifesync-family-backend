@@ -2,8 +2,10 @@ package com.lifesync.familyservice.controller;
 
 import com.lifesync.familyservice.model.FamilyGroup;
 import com.lifesync.familyservice.model.GroceryItem;
+import com.lifesync.familyservice.model.GroupMessage;
 import com.lifesync.familyservice.repository.FamilyGroupRepository;
 import com.lifesync.familyservice.repository.GroceryItemRepository;
+import com.lifesync.familyservice.repository.GroupMessageRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.*;
@@ -20,10 +22,12 @@ public class FamilyGroupController {
 
     private final FamilyGroupRepository groupRepository;
     private final GroceryItemRepository groceryRepository;
+    private final GroupMessageRepository groupMessageRepository; // THE FIX: Added Group Message Repository
 
-    public FamilyGroupController(FamilyGroupRepository groupRepository, GroceryItemRepository groceryRepository) {
+    public FamilyGroupController(FamilyGroupRepository groupRepository, GroceryItemRepository groceryRepository, GroupMessageRepository groupMessageRepository) {
         this.groupRepository = groupRepository;
         this.groceryRepository = groceryRepository;
+        this.groupMessageRepository = groupMessageRepository;
     }
 
     @GetMapping
@@ -92,6 +96,28 @@ public class FamilyGroupController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
+    // THE FIX: Dedicated endpoint to kick a user, strictly verified by the leader's email
+    @DeleteMapping("/{groupId}/members")
+    public ResponseEntity<FamilyGroup> removeMemberFromGroup(
+            @PathVariable @NonNull Long groupId, 
+            @RequestParam String memberEmail, 
+            @RequestParam String requesterEmail) {
+        
+        return groupRepository.findById(groupId).map(group -> {
+            // Verify the requester is the leader
+            if (group.getLeaderEmail() != null && group.getLeaderEmail().equalsIgnoreCase(requesterEmail)) {
+                List<String> members = group.getMembers();
+                // Ensure the leader cannot accidentally delete themselves
+                if (members.contains(memberEmail) && !memberEmail.equalsIgnoreCase(group.getLeaderEmail())) {
+                    members.remove(memberEmail);
+                    group.setMembers(members);
+                    groupRepository.save(group);
+                }
+            }
+            return ResponseEntity.ok(group);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
     @PutMapping("/{groupId}/leader")
     public ResponseEntity<FamilyGroup> transferLeadership(@PathVariable @NonNull Long groupId, @RequestBody Map<String, String> request) {
         String newLeaderEmail = request.get("newLeaderEmail");
@@ -104,5 +130,18 @@ public class FamilyGroupController {
             group.setLeaderEmail(newLeaderEmail);
             return ResponseEntity.ok(groupRepository.save(group));
         }).orElse(ResponseEntity.notFound().build());
+    }
+
+    // THE FIX: Save messages directly to this specific group
+    @PostMapping("/{groupId}/messages")
+    public ResponseEntity<GroupMessage> sendGroupMessage(@PathVariable Long groupId, @RequestBody GroupMessage message) {
+        message.setGroupId(groupId);
+        return ResponseEntity.ok(groupMessageRepository.save(message));
+    }
+
+    // THE FIX: Fetch all messages for this specific group
+    @GetMapping("/{groupId}/messages")
+    public ResponseEntity<List<GroupMessage>> getGroupMessages(@PathVariable Long groupId) {
+        return ResponseEntity.ok(groupMessageRepository.findByGroupIdOrderByIdAsc(groupId));
     }
 }
