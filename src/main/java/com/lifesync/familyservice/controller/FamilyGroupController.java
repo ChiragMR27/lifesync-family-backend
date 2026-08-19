@@ -6,13 +6,19 @@ import com.lifesync.familyservice.model.GroupMessage;
 import com.lifesync.familyservice.repository.FamilyGroupRepository;
 import com.lifesync.familyservice.repository.GroceryItemRepository;
 import com.lifesync.familyservice.repository.GroupMessageRepository;
+import nl.martijndwars.webpush.Notification;
+import nl.martijndwars.webpush.PushService;
+import nl.martijndwars.webpush.Subscription;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Security;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @RestController
@@ -22,12 +28,37 @@ public class FamilyGroupController {
 
     private final FamilyGroupRepository groupRepository;
     private final GroceryItemRepository groceryRepository;
-    private final GroupMessageRepository groupMessageRepository; // THE FIX: Added Group Message Repository
+    private final GroupMessageRepository groupMessageRepository; 
+    
+    // NEW: Background Notification Service & Storage
+    private PushService pushService;
+    private final Map<String, Subscription> subscriptions = new ConcurrentHashMap<>();
 
     public FamilyGroupController(FamilyGroupRepository groupRepository, GroceryItemRepository groceryRepository, GroupMessageRepository groupMessageRepository) {
         this.groupRepository = groupRepository;
         this.groceryRepository = groceryRepository;
         this.groupMessageRepository = groupMessageRepository;
+        
+        // Initialize Security Provider and Web Push Keys
+        try {
+            if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+                Security.addProvider(new BouncyCastleProvider());
+            }
+            this.pushService = new PushService(
+                "mailto:admin@lifesync.com",
+                "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U=",
+                "aV_W3x8P08pQ80vR_17eB-zD9p5A5s2S5Q8G8t90AQA="
+            );
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // NEW: Endpoint for React to register a device for background notifications
+    @PostMapping("/subscribe")
+    public ResponseEntity<Void> subscribe(@RequestParam String email, @RequestBody Subscription subscription) {
+        subscriptions.put(email, subscription);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping
@@ -96,7 +127,6 @@ public class FamilyGroupController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    // THE FIX: Dedicated endpoint to kick a user, strictly verified by the leader's email
     @DeleteMapping("/{groupId}/members")
     public ResponseEntity<FamilyGroup> removeMemberFromGroup(
             @PathVariable @NonNull Long groupId, 
@@ -104,10 +134,8 @@ public class FamilyGroupController {
             @RequestParam String requesterEmail) {
         
         return groupRepository.findById(groupId).map(group -> {
-            // Verify the requester is the leader
             if (group.getLeaderEmail() != null && group.getLeaderEmail().equalsIgnoreCase(requesterEmail)) {
                 List<String> members = group.getMembers();
-                // Ensure the leader cannot accidentally delete themselves
                 if (members.contains(memberEmail) && !memberEmail.equalsIgnoreCase(group.getLeaderEmail())) {
                     members.remove(memberEmail);
                     group.setMembers(members);
@@ -132,16 +160,30 @@ public class FamilyGroupController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    // THE FIX: Save messages directly to this specific group
     @PostMapping("/{groupId}/messages")
     public ResponseEntity<GroupMessage> sendGroupMessage(@PathVariable Long groupId, @RequestBody GroupMessage message) {
         message.setGroupId(groupId);
-        return ResponseEntity.ok(groupMessageRepository.save(message));
+        GroupMessage savedMessage = groupMessageRepository.save(message);
+
+        // NEW: Automatically alert all members who are subscribed
+        groupRepository.findById(groupId).ifPresent(group -> {
+            String payload = String.format("{\"title\": \"New message in %s\", \"body\": \"%s\"}", group.getName(), message.getText());
+            for (String memberEmail : group.getMembers()) {
+                if (!memberEmail.equalsIgnoreCase(message.getSenderEmail()) && subscriptions.containsKey(memberEmail)) {
+                    try {
+                        pushService.send(new Notification(subscriptions.get(memberEmail), payload));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
+
+        return ResponseEntity.ok(savedMessage);
     }
 
-    // THE FIX: Fetch all messages for this specific group
     @GetMapping("/{groupId}/messages")
     public ResponseEntity<List<GroupMessage>> getGroupMessages(@PathVariable Long groupId) {
         return ResponseEntity.ok(groupMessageRepository.findByGroupIdOrderByIdAsc(groupId));
     }
-}
+}	
